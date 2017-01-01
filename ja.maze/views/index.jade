@@ -1,0 +1,160 @@
+﻿extends layout
+
+block content
+  .ui.container#maze
+    .ui.inverted.dimmer
+      .ui.text.loader 新迷宫生成中...
+    .ui.basic.green.button(@click='init') 新游戏
+    .ui.basic.blue.button(@click='run') 出发！
+    table.ui.center.aligned.celled.table
+      tbody
+        tr(v-for='row in canvas.rows')
+          td.ui.center.aligned(v-for='col in row',v-bind:class='{ wall: col.type == typeMap.WALL}')
+            i.blue.building.icon(v-if='col.type == typeMap.BUILDING')
+            i.red.bicycle.icon(v-if='col.type == typeMap.BICYCLE')
+            i.blue.bicycle.icon(v-if='col.type == typeMap.TEST')
+            i.tree.green.icon(v-if='col.type == typeMap.TREE')
+            span(v-if='col.type == typeMap.ROAD || col.type == typeMap.WALL') &nbsp;
+    .ui.segment
+      p 【自行车位置：{{bike.row}}行 {{bike.col}}列】 【办公楼位置：{{building.row}}行 {{building.col}}列】
+    .ui.list(v-for='message in messages')
+      .item {{message}}
+block scripts
+  script.
+    var config = {
+      rows: 40,
+      cols: 40,
+      alpha: 0.3
+    };
+    var typeMap = { BUILDING:0, ROAD:1, WALL:2, TREE:3, BICYCLE:4, TEST:5 };
+    var typeMove = [
+      {row:1, col:0, to:'S'},
+      {row:0, col:1, to:'E'},
+      {row:0, col:-1, to:'W'},
+      {row:-1, col:0, to:'N'}
+    ];
+    var maze = new Vue({
+      el: '#maze',
+      data:{
+        canvas:{
+          rows: []
+        },
+        bike: { row: -1, col: -1, to: '0'},
+        building: { row: -1, col: -1, to: '0'},
+        messages: []
+      },
+      methods:{
+        init: function(){
+          init();
+        },
+        run: function(){
+          run();
+        }
+      }
+    });
+    $(function(){
+      init();
+      $(document).keydown(function(event){
+        var key = event.which || event.keyCode;
+        switch(key){
+          case 37:
+            if(maze.bike.col>1 && maze.canvas.rows[maze.bike.row][maze.bike.col - 1].type == typeMap.ROAD){
+              moveTo(maze.bike.row, maze.bike.col, maze.bike.row, maze.bike.col - 1);
+            }
+            break;
+          case 39:
+            if(maze.bike.col<config.cols-1 && maze.canvas.rows[maze.bike.row][maze.bike.col + 1].type == typeMap.ROAD){
+              moveTo(maze.bike.row, maze.bike.col, maze.bike.row, maze.bike.col + 1);
+            }
+            break;
+          case 38:
+            if(maze.bike.row>1 && maze.canvas.rows[maze.bike.row - 1][maze.bike.col].type == typeMap.ROAD){
+              moveTo(maze.bike.row, maze.bike.col, maze.bike.row - 1, maze.bike.col);
+            }
+            break;
+          case 40:
+            if(maze.bike.row<config.rows-1 && maze.canvas.rows[maze.bike.row + 1][maze.bike.col].type == typeMap.ROAD){
+              moveTo(maze.bike.row, maze.bike.col, maze.bike.row + 1, maze.bike.col);
+            }
+            break;
+        }
+      });
+    });
+    function moveTo(oldrow, oldcol, row, col){
+      maze.canvas.rows[row][col].type = typeMap.BICYCLE;
+      maze.canvas.rows[oldrow][oldcol].type = typeMap.ROAD;
+      maze.bike.row = row;
+      maze.bike.col = col;
+    }
+    function init(){
+      $('.dimmer').dimmer('show');
+      maze.canvas.rows = [];
+      maze.messages = [];
+      var hasBycicle = false;
+      var hasBuilding = false;
+      for(var irow=0;irow<config.rows;irow++){
+        var cols = [];
+        for(var icol=0;icol<config.cols;icol++){
+          if(irow==0 || irow==config.rows-1 || icol == 0 || icol==config.cols-1){
+            cols.push({ type: typeMap.WALL, visited: true })
+          }
+          else {
+            var seed = Math.random();
+            if(seed>config.alpha){
+              cols.push({ type: typeMap.ROAD, visited: false });
+            } else{
+              if(!hasBycicle && seed<0.5*config.alpha){
+                cols.push({ type: typeMap.BICYCLE, visited: false });
+                maze.bike.row = irow;
+                maze.bike.col = icol;
+                hasBycicle = true;
+              } else if (!hasBuilding && irow == config.rows-2) {
+                cols.push({ type: typeMap.BUILDING, visited: false });
+                maze.building.row = irow;
+                maze.building.col = icol;
+                hasBuilding = true;
+              } else {
+                cols.push({ type: typeMap.TREE, visited: true });
+              }
+            }
+          }
+        }
+        maze.canvas.rows.push(cols);
+      }
+      $('.dimmer').dimmer('hide');
+    }
+    function run(){
+      var path = [];
+      var start = maze.bike;
+      var end = maze.building;
+      maze.messages.push('Begin.');
+      if(seekpath(start, end) == true){
+        maze.messages.push('Path shown.');
+      } else{
+        maze.messages.push('No path.');
+      }
+    }
+    function seekpath(from, to){
+      if(from.row == to.row && from.col == to.col){
+        maze.messages.push('Arraived.');
+        return true;
+      }
+      var test = { row: 0, col: 0, to: '0'};
+      for (var step = 0; step < typeMove.length; step ++ ){
+        test.row = from.row + typeMove[step].row;
+        test.col = from.col + typeMove[step].col;
+        if(!maze.canvas.rows[test.row][test.col].visited && maze.canvas.rows[test.row][test.col].type < 2){
+          maze.canvas.rows[test.row][test.col].visited = true;
+          if(seekpath(test, to) == true){
+            if(maze.canvas.rows[test.row][test.col].type != typeMap.BUILDING)
+              maze.canvas.rows[test.row][test.col].type = typeMap.BICYCLE;
+            return true;
+          }
+        }
+      }
+      if(from.row == maze.bike.row && from.col == maze.bike.col){
+        maze.messages.push('SeekPath Fail.');
+      }
+      return false;
+    }
+    

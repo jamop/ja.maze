@@ -1,0 +1,17 @@
+body {
+  padding: 5px;
+  font: 14px "Lucida Grande", Helvetica, Arial, sans-serif;
+}
+a {
+  color: #00b7ff;
+}
+.ui.table td {
+  padding: 0;
+}
+.ui.table td.cell {
+  width: 24px;
+  height: 24px;
+}
+td.wall {
+  background-color: #008000;
+}
