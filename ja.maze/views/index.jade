@@ -17,8 +17,13 @@ block content
             span(v-if='col.type == typeMap.ROAD || col.type == typeMap.WALL') &nbsp;
     .ui.segment
       p 【自行车位置：{{bike.row}}行 {{bike.col}}列】 【办公楼位置：{{building.row}}行 {{building.col}}列】
-    .ui.list(v-for='message in messages')
-      .item {{message}}
+    .ui.two.columns.grid
+      .column
+        .ui.list(v-for='message in messages')
+          .item {{message}}
+      .column
+        .ui.list(v-for='step in passed')
+          .item {{step.row}} {{step.col}} {{step.to}}
 block scripts
   script.
     var config = {
@@ -41,6 +46,7 @@ block scripts
         },
         bike: { row: -1, col: -1, to: '0'},
         building: { row: -1, col: -1, to: '0'},
+        passed: [],
         messages: []
       },
       methods:{
@@ -90,6 +96,7 @@ block scripts
       $('.dimmer').dimmer('show');
       maze.canvas.rows = [];
       maze.messages = [];
+      maze.passed = [];
       var hasBycicle = false;
       var hasBuilding = false;
       for(var irow=0;irow<config.rows;irow++){
@@ -129,6 +136,9 @@ block scripts
       var end = maze.building;
       maze.messages.push('Begin.');
       if(seekpath(start, end) == true){
+        maze.passed.forEach((step) => {
+          maze.canvas.rows[step.row][step.col].type = typeMap.BICYCLE;
+        })
         maze.messages.push('Path shown.');
       } else{
         maze.messages.push('No path.');
@@ -143,11 +153,14 @@ block scripts
       for (var step = 0; step < typeMove.length; step ++ ){
         test.row = from.row + typeMove[step].row;
         test.col = from.col + typeMove[step].col;
+        test.to = typeMove[step].to;
         if(!maze.canvas.rows[test.row][test.col].visited && maze.canvas.rows[test.row][test.col].type < 2){
           maze.canvas.rows[test.row][test.col].visited = true;
           if(seekpath(test, to) == true){
-            if(maze.canvas.rows[test.row][test.col].type != typeMap.BUILDING)
-              maze.canvas.rows[test.row][test.col].type = typeMap.BICYCLE;
+            if(maze.canvas.rows[test.row][test.col].type != typeMap.BUILDING){
+              maze.passed.push(test);
+              //maze.canvas.rows[test.row][test.col].type = typeMap.BICYCLE;
+            }
             return true;
           }
         }
